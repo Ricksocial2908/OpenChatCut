@@ -26,5 +26,7 @@ assert.deepEqual(hydrated[0], {
 }, 'legacy user messages receive retry metadata during hydration');
 assert.deepEqual(hydrated[1], { role: 'assistant', text: '历史回答' }, 'assistant messages are unchanged');
 assert.equal(hydrated[2].retry, existing, 'existing retry metadata is preserved');
+const localKept = ensureAgentRetryMetadata([{ role: 'user', text: 'Order these clips', local: true }]);
+assert.equal(localKept[0]?.retry, undefined, 'local short-movie turns stay out of Agent retry');
 
 console.log('retry-message.verify: ok');

@@ -42,6 +42,7 @@ import {
   upsertChatAttachmentReference,
   type ChatAttachmentLifecycleState,
 } from './chatAttachmentLifecycle';
+import { parseShortCommand, runShortCommand } from '../../shorts/shortCommands';
 import { useChatAgentController } from './useChatAgentController';
 import {
   useChatAutoScroll,
@@ -68,6 +69,10 @@ export interface ChatPanelProps {
   onImportMedia: ChatMediaImporter;
   /** Open the settings dialog, optionally on a specific vendor page (capability-gap banner, missing-pack button). */
   onOpenSettings?: (route?: string) => void;
+  /** Open the existing export dialog (MP4 is one of its formats). */
+  onOpenExport?: () => void;
+  /** Seek the preview to the start of the assembled sequence. */
+  onRevealSequence?: () => void;
 }
 
 export interface ChatComposerController {
@@ -99,7 +104,8 @@ export interface ChatComposerController {
 }
 
 export interface ChatPanelActions {
-  submit: () => void;
+  /** A string replaces the composer text. Click events and other non-strings are ignored. */
+  submit: (text?: string) => void;
   runEnhance: () => Promise<void>;
   insertRef: (reference: RefItem) => void;
   removeRef: (id: string) => void;
@@ -241,22 +247,37 @@ function useReferenceSelection(
 function useMessageActions(
   agent: AgentController,
   composer: ChatComposerController,
-  projectId: string,
+  props: ChatPanelProps,
 ) {
-  const submit = useCallback(() => {
-    if (!composer.input.trim() || agent.running) return;
-    if (!isAgentModelReady(getAgentModelSnapshot()) || pendingChatAttachmentCount(composer.attachmentLifecycleRef.current) > 0) return;
+  const submit = useCallback((override?: unknown) => {
+    if (agent.running) return;
+    if (pendingChatAttachmentCount(composer.attachmentLifecycleRef.current) > 0) return;
+    const text = (typeof override === 'string' ? override : composer.input).trim();
+    if (!text) return;
+    const command = parseShortCommand(text);
+    if (command) {
+      const outcome = runShortCommand(props.ctx, command);
+      agent.recordLocalTurn(text, outcome.message, outcome.ok);
+      if (outcome.openExport) props.onOpenExport?.();
+      if (outcome.ok && command.type !== 'export' && command.type !== 'help') props.onRevealSequence?.();
+      composer.invalidateAttachmentDraft();
+      composer.setInput('');
+      composer.commitSelectedRefs([]);
+      clearComposerDraft(props.projectId);
+      return;
+    }
+    if (!isAgentModelReady(getAgentModelSnapshot())) return;
     const references = composer.selectedRefsRef.current;
     composer.invalidateAttachmentDraft();
     const tokens = references.map((reference) => refPromptToken(reference)).join(' ');
     const sendText = references.length
-      ? `${composer.input}${composer.input.endsWith(' ') ? '' : ' '}${tokens}`
-      : composer.input;
+      ? `${text}${text.endsWith(' ') ? '' : ' '}${tokens}`
+      : text;
     void agent.send(sendText, { askOnly: composer.mode === 'ask', references });
     composer.setInput('');
     composer.commitSelectedRefs([]);
-    clearComposerDraft(projectId);
-  }, [agent, composer, projectId]);
+    clearComposerDraft(props.projectId);
+  }, [agent, composer, props]);
   const runEnhance = useCallback(async () => {
     if (!composer.input.trim() || composer.enhancing || agent.running) return;
     if (!isAgentModelReady(getAgentModelSnapshot()) || pendingChatAttachmentCount(composer.attachmentLifecycleRef.current) > 0) return;
@@ -320,7 +341,7 @@ function useChatActions(
   agent: AgentController,
   composer: ChatComposerController,
 ): ChatPanelActions {
-  const messages = useMessageActions(agent, composer, props.projectId);
+  const messages = useMessageActions(agent, composer, props);
   const references = useReferenceActions(props.ctx, composer);
   useReferenceSelection(references.insertRef, composer, props.collapsed);
   const importPastedFiles = createChatAttachmentImporter({

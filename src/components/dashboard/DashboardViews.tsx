@@ -20,15 +20,30 @@ import {
 } from './dashboardStyles';
 import { relativeProjectTime, type DashboardModel, type DashboardProps } from './useDashboardModel';
 
+function ShortMovieBanner() {
+  const t = useT();
+  return (
+    <section role="status" style={{ ...modelSetupCard, borderColor: theme.border }}>
+      <span style={modelSetupIcon}><Icon name="film" size={18} /></span>
+      <span style={{ flex: 1, minWidth: 0 }}>
+        <strong style={{ display: 'block', color: theme.textStrong, fontSize: 13.5 }}>{t('用对话把多个片段剪成短片')}</strong>
+        <span style={{ display: 'block', marginTop: 3, color: theme.textDim, fontSize: 11.5, lineHeight: 1.5 }}>
+          {t('新建工程，一次导入多个视频或图片，然后说「排列这些片段」「做成 30 秒短片」「导出」。这些指令不需要 API key。')}
+        </span>
+      </span>
+    </section>
+  );
+}
+
 function ModelSetupCard({ onOpen }: { onOpen: () => void }) {
   const t = useT();
   return (
     <section role="status" style={modelSetupCard}>
       <span style={modelSetupIcon}><Icon name="sparkles" size={18} /></span>
       <span style={{ flex: 1, minWidth: 0 }}>
-        <strong style={{ display: 'block', color: theme.textStrong, fontSize: 13.5 }}>{t('配置模型后开始使用 Agent')}</strong>
+        <strong style={{ display: 'block', color: theme.textStrong, fontSize: 13.5 }}>{t('短片指令无需模型')}</strong>
         <span style={{ display: 'block', marginTop: 3, color: theme.textDim, fontSize: 11.5, lineHeight: 1.5 }}>
-          {t('配置任一云端或本地模型，即可在编辑器中使用对话式剪辑。')}
+          {t('排列、修剪、淡化和导出可以没有 API key。开放式 Agent 对话需要在设置里配置模型。')}
         </span>
       </span>
       <button type="button" onClick={onOpen} style={modelSetupButton}>{t('配置模型')}</button>
@@ -182,6 +197,7 @@ export function DashboardContent({ props, model }: { props: DashboardProps; mode
     <main style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
       <div style={{ maxWidth: 1120, margin: '0 auto', padding: '28px 24px 80px' }}>
         <StorageMigrationBanner onOpenDialog={() => model.setDialog('storage', true)} />
+        {props.projects.length <= 1 && <ShortMovieBanner />}
         {model.modelSnapshot.loaded && model.modelSnapshot.choices.length === 0 && <ModelSetupCard onOpen={() => model.setDialog('settings', true)} />}
         <ProjectToolbar projects={props.projects} model={model} />
         <ProjectGrid props={props} model={model} />

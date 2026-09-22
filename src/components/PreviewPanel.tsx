@@ -338,9 +338,10 @@ export const PreviewPanel = memo(function PreviewPanel({
         {state.items.length === 0 ? (
           <>
             <input ref={inputRef} type="file" accept="video/*,image/*,audio/*" multiple hidden onChange={(event) => { if (event.target.files) void importFiles(event.target.files); event.target.value = ''; }} />
-            <button className="cc-preview-empty" disabled={busy} onClick={() => inputRef.current?.click()}>
+            <button className="cc-preview-empty cc-preview-empty-guide" disabled={busy} onClick={() => inputRef.current?.click()}>
               <Icon name="upload" size={24} />
-              <span>{busy ? t('正在导入媒体…') : t('拖拽媒体到这里')}</span>
+              <span>{busy ? t('正在导入媒体…') : t('拖入多个片段')}</span>
+              <small>{t('视频和图片会进入素材库并接到时间线。然后在对话里排列、修剪、导出。')}</small>
             </button>
           </>
         ) : (

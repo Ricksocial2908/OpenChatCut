@@ -31,6 +31,7 @@ interface MediaPoolGridProps {
   onDropTransfer: (transfer: DataTransfer, folderId?: string) => void;
   onMoveAsset: (id: string, folderId?: string) => void;
   onMoveAssets?: (ids: string[], folderId?: string) => void;
+  onImportEmpty?: () => void;
   onOpenFavorites: () => void;
   onAddSolid?: () => void;
   onSetFavorite: (id: string, favorite: boolean) => void;
@@ -157,11 +158,22 @@ export function MediaPoolGrid(props: MediaPoolGridProps) {
     >
       {marqueeStyle && <div className="cc-media-marquee" aria-hidden="true" style={marqueeStyle} />}
       <MediaVirtualRows {...props} {...windowState} />
-      {props.entries.length === 0 && <div className="cc-media-empty">
-        {props.assetsCount === 0
-          ? <><Icon name="folder" size={28} /><strong>{t('这个文件夹是空的')}</strong><span>{t('导入媒体或把素材拖到这里。')}</span></>
-          : <span>{t('当前筛选下没有素材')}</span>}
-      </div>}
+      {props.entries.length === 0 && (props.assetsCount === 0 ? (
+        <div className="cc-media-empty cc-short-guide">
+          <Icon name="upload" size={28} />
+          <strong>{t('先导入多个片段')}</strong>
+          <ol>
+            <li>{t('1. 上传视频或图片')}</li>
+            <li>{t('2. 在对话里排列和修剪')}</li>
+            <li>{t('3. 在预览里播放')}</li>
+            <li>{t('4. 导出 MP4')}</li>
+          </ol>
+          <button type="button" onClick={props.onImportEmpty}>{t('导入片段')}</button>
+          <span>{t('也可以把文件拖到这个面板。')}</span>
+        </div>
+      ) : (
+        <div className="cc-media-empty"><span>{t('当前筛选下没有素材')}</span></div>
+      ))}
     </div>
   );
 }

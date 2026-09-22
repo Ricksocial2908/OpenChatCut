@@ -30,4 +30,9 @@ export interface AgentController {
   readonly canRollbackChangeSession: (id: string) => boolean;
   /** Drop the user turn at `index` and everything after it from both histories; false = untouched. */
   readonly rewindTurn: (index: number) => boolean;
+  /**
+   * Append a local short-movie exchange to the visible chat only.
+   * These turns are not written into model history and carry no retry payload.
+   */
+  readonly recordLocalTurn: (userText: string, reply: string, ok?: boolean) => void;
 }

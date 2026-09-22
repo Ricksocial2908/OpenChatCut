@@ -18,6 +18,8 @@ export interface DisplayMessage {
   text: string;
   thinking?: string;
   retry?: AgentRetry;
+  /** Local short-movie command. Visible in chat, never sent to the model, and not a retryable Agent turn. */
+  local?: boolean;
   tool?: { name: string; args: unknown; result: unknown };
 }
 
@@ -36,7 +38,7 @@ export function createAgentRetry(
 
 /** Backfill retry metadata for chats persisted before retry support existed. */
 export function ensureAgentRetryMetadata(messages: readonly DisplayMessage[]): DisplayMessage[] {
-  return messages.map((message) => message.role !== 'user' || message.retry
+  return messages.map((message) => message.role !== 'user' || message.retry || message.local
     ? message
     : { ...message, retry: createAgentRetry(message.text) });
 }
