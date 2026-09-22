@@ -245,7 +245,7 @@ function videoTrackOf(state: TimelineState): TrackId | null {
 }
 
 function namesOf(items: readonly { name: string }[]): string {
-  return items.map((item, index) => `${index + 1}. ${item.name}`).join('、');
+  return items.map((item, index) => `${index + 1}. ${item.name}`).join(', ');
 }
 
 function secondsLabel(frames: number, fps: number): string {
@@ -273,7 +273,7 @@ interface ResolvedClip {
 function availableNames(state: TimelineState, doc: ProjectDoc): string {
   const clips = visualClips(state);
   const source = clips.length ? clips : poolVisuals(doc);
-  return source.map((item) => item.name).join('、') || t('（无）');
+  return source.map((item) => item.name).join(', ') || t('（无）');
 }
 
 function resolveOne(state: TimelineState, doc: ProjectDoc, selector: ClipSelector): { ok: true; clip: ResolvedClip } | { ok: false; outcome: ShortOutcome } {
@@ -330,7 +330,7 @@ function resolveOne(state: TimelineState, doc: ProjectDoc, selector: ClipSelecto
     const names = [...chosenClips.map((hit) => hit.item.name), ...chosenPool.map((hit) => hit.asset.name)];
     return { ok: false, outcome: fail('ambiguous-name', t('“{name}”匹配到多个片段，请写得更具体：{available}', {
       name: selector.name,
-      available: names.join('、'),
+      available: names.join(', '),
     })) };
   }
   if (chosenClips.length) return { ok: true, clip: { item: chosenClips[0]!.item, name: chosenClips[0]!.item.name } };
