@@ -54,7 +54,7 @@ function ChatHeader({ controller }: { controller: ChatPanelController }) {
       <BrandMark size={20} />
       <span className="cc-chat-brand-copy">
         <OpenChatCutWordmark width={102} />
-        <small>{t('Agent 工作台')}</small>
+        <small>{t('短片工作台')}</small>
       </span>
     </div>
     <AgentRunInspector projectId={props.projectId} />
@@ -70,17 +70,20 @@ function ChatHeader({ controller }: { controller: ChatPanelController }) {
 }
 
 function ChatOnboarding({ controller }: { controller: ChatPanelController }) {
-  const { composer, t } = controller;
+  const { actions, t } = controller;
   return <div className="cc-chat-onboarding">
-    <div className="cc-chat-onboarding-kicker">{t('从这里开工')}</div>
-    <h2>{t('从一个剪辑目标开始')}</h2>
-    <p>{t('选择工作流，或直接描述你想得到的成片。')}</p>
+    <div className="cc-chat-onboarding-kicker">{t('短片流程')}</div>
+    <h2>{t('导入片段，用对话剪成短片')}</h2>
+    <p>{t('先放入多个视频或图片，再点一条指令。这些指令不需要 API key。更开放的要求仍交给 Agent，需要在设置里配置模型。')}</p>
+    <ol className="cc-short-steps">
+      <li>{t('导入多个片段')}</li>
+      <li>{t('对话里排列、修剪、加淡化')}</li>
+      <li>{t('在预览里播放')}</li>
+      <li>{t('导出 MP4')}</li>
+    </ol>
     <div className="cc-chat-starter-list">
       {EMPTY_PROJECT_STARTERS.map((starter) => (
-        <button type="button" key={starter.label} onClick={() => {
-          composer.setInput(t(starter.prompt));
-          requestAnimationFrame(() => composer.taRef.current?.focus());
-        }}>
+        <button type="button" key={starter.label} onClick={() => actions.submit(t(starter.prompt))}>
           <span className="cc-chat-starter-icon"><Icon name={starter.icon} size={16} /></span>
           <span className="cc-chat-starter-copy">
             <strong>{t(starter.label)}</strong><small>{t(starter.description)}</small>
@@ -199,14 +202,13 @@ function MessageWorkspace({ controller }: { controller: ChatPanelController }) {
 }
 
 function QuickActionSelect({ controller }: { controller: ChatPanelController }) {
-  const { agent, composer, t } = controller;
+  const { actions, agent, t } = controller;
   return <select aria-label={t('快速操作')} value="" disabled={agent.running}
     onChange={(event) => {
       if (!event.target.value) return;
       const action = QUICK_ACTIONS[Number(event.target.value)];
       if (!action) return;
-      composer.setInput(t(action.prompt));
-      requestAnimationFrame(() => composer.taRef.current?.focus());
+      actions.submit(t(action.prompt));
     }}
     style={{ width: '100%', marginBottom: 8, border: `0.5px solid ${theme.border}`, borderRadius: 6, padding: '6px 8px', background: theme.panelAlt, color: theme.text, fontSize: 12 }}>
     <option value="">{t('快速操作…')}</option>
@@ -236,7 +238,7 @@ function ComposerInput({ controller }: { controller: ChatPanelController }) {
     pasteError={composer.pasteError} onDismissPasteError={() => composer.setPasteError(null)}
     onDropEditorItem={actions.onDropEditorItem} taRef={composer.taRef}
     placeholder={agent.messages.length === 0
-      ? t('描述你想要创建的内容...') : t('告诉 AI 要做哪些修改 - @ 引用素材')} />;
+      ? t('排列、修剪、加淡化，或输入 / 查看短片指令') : t('告诉 AI 要做哪些修改 - @ 引用素材，或用 clip 2 / 文件名')} />;
 }
 
 function ComposerSection({ controller }: { controller: ChatPanelController }) {

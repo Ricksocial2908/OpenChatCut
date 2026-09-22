@@ -15,7 +15,8 @@ import {
 import { ComposerPopover } from './ComposerPopover';
 import { ComposerModelPicker } from './ComposerModelPicker';
 import { useComposerModelView } from './useComposerModelView';
-import { hasPendingComposerAttachment, shouldSubmitComposerOnKeyDown } from './composerSubmitGate';
+import { composerCanSendLocal, hasPendingComposerAttachment, shouldSubmitComposerOnKeyDown } from './composerSubmitGate';
+import { matchShortSlash, parseShortCommand, type ShortSlashEntry } from '../../shorts/shortCommands';
 import { WorkflowPickerContent } from './WorkflowPickerContent';
 import { hasEditorDrag, parseEditorDrag } from '../../editor/editorDrag';
 import { droppedFiles, hasExternalFiles } from '../../media/externalFileDrop';
@@ -73,6 +74,10 @@ export function ChatComposer(props: ChatComposerProps) {
   const [slashOpen, setSlashOpen] = useState(false);
   const [slashIndex, setSlashIndex] = useState(-1);
   const slashListRef = useRef<HTMLDivElement>(null);
+  const shortSlash = useMemo(
+    (): readonly ShortSlashEntry[] => (slashExplicit ? [] : matchShortSlash(slashMatchQuery)),
+    [slashExplicit, slashMatchQuery],
+  );
   const slashMatches = useMemo((): SkillDefinition[] => {
     if (slashMatchQuery === null) return [];
     const q = slashMatchQuery.toLowerCase().trim();
@@ -91,6 +96,7 @@ export function ChatComposer(props: ChatComposerProps) {
         || s.nameZh.includes(q)));
     return [...starts, ...contains];
   }, [slashExplicit, slashMatchQuery]);
+  const slashRowCount = shortSlash.length + slashMatches.length;
   // Keyboard navigation scrolls the highlighted row into view — the list is
   // taller than its maxHeight once there are 5+ skills. Lives after the
   // useMemo: the dependency array evaluates immediately (TDZ).
@@ -99,12 +105,24 @@ export function ChatComposer(props: ChatComposerProps) {
     if (!list || slashIndex < 0) return;
     const item = list.children[slashIndex] as HTMLElement | undefined;
     item?.scrollIntoView({ block: 'nearest' });
-  }, [slashIndex, slashMatches.length]);
+  }, [slashIndex, slashRowCount]);
   useEffect(() => {
     if (slashMatchQuery === null) { setSlashOpen(false); return; }
     setSlashOpen(true);
-    setSlashIndex((i) => (slashMatches.length > 0 ? Math.min(i, slashMatches.length - 1) : -1));
-  }, [slashMatches.length, slashMatchQuery]);
+    setSlashIndex((i) => (slashRowCount > 0 ? Math.min(Math.max(i, 0), slashRowCount - 1) : -1));
+  }, [slashRowCount, slashMatchQuery]);
+  const runHighlightedSlash = () => {
+    const index = Math.max(0, slashIndex);
+    if (index < shortSlash.length) {
+      const typed = value.trim();
+      const verbOnly = typed === '/' || /^\/[a-z?]+\s*$/i.test(typed);
+      const text = parseShortCommand(typed) && !verbOnly ? typed : shortSlash[index]!.insert;
+      onSubmit(text);
+      return;
+    }
+    const skill = slashMatches[index - shortSlash.length];
+    if (skill) activateSlash(skill);
+  };
   const activateSlash = (skill: SkillDefinition) => {
     // Skill selection never fills the composer: the user typed their own
     // task. Activation = creative mode set + clean input + focus.
@@ -125,16 +143,19 @@ export function ChatComposer(props: ChatComposerProps) {
     });
   };
   const attachmentsPending = hasPendingComposerAttachment(pasting, pendingAttachmentCount);
-  const canSend = !!value.trim() && !running && !attachmentsPending && modelReady;
+  const localCommand = parseShortCommand(value) !== null;
+  const canSend = composerCanSendLocal({ value, running, attachmentsPending, modelReady });
   const canEnhance = !!value.trim() && !enhancing && !running && !attachmentsPending && modelReady;
   const pendingReason = t('请等待附件导入完成。');
   const sendTitle = attachmentsPending
     ? pendingReason
     : modelReady
       ? t('发送 (Enter)')
-      : modelState.loaded
-        ? t('请先在设置中配置一个模型厂商。')
-        : t('正在读取模型配置…');
+      : localCommand
+        ? t('本地短片指令，无需模型 (Enter)')
+        : modelState.loaded
+          ? t('请先在设置中配置一个模型厂商。短片指令（/order、/trim、/fades、/short、/export）无需模型。')
+          : t('正在读取模型配置…');
   const refList = (kind: 'asset' | 'template') =>
     references.filter((r) => (kind === 'template' ? r.kind === 'template' : r.kind !== 'template'));
 
@@ -348,22 +369,22 @@ export function ChatComposer(props: ChatComposerProps) {
         onKeyDown={(event) => {
           if (event.key === 'Enter' && !event.shiftKey) event.preventDefault();
           if (slashOpen && slashMatchQuery !== null) {
-            if (event.key === 'ArrowDown' && slashMatches.length) {
+            if (event.key === 'ArrowDown' && slashRowCount) {
               event.preventDefault();
-              setSlashIndex((i) => (i + 1) % slashMatches.length);
+              setSlashIndex((i) => (i + 1) % slashRowCount);
               return;
             }
-            if (event.key === 'ArrowUp' && slashMatches.length) {
+            if (event.key === 'ArrowUp' && slashRowCount) {
               event.preventDefault();
-              setSlashIndex((i) => (i <= 0 ? slashMatches.length - 1 : i - 1));
+              setSlashIndex((i) => (i <= 0 ? slashRowCount - 1 : i - 1));
               return;
             }
             if ((event.key === 'Enter' || event.key === 'Tab') && slashOpen) {
               // With the slash menu open, Enter/Tab must never fall through to
               // submitting the raw command text, even when there are zero
-              // matches (e.g. a typo'ed skill name).
+              // matches (e.g. a typo'ed skill name). Short-movie rows run locally.
               event.preventDefault();
-              if (slashMatches.length) activateSlash(slashMatches[Math.max(0, slashIndex)]);
+              if (slashRowCount) runHighlightedSlash();
               return;
             }
             if (event.key === 'Escape') {
@@ -474,6 +495,8 @@ export function ChatComposer(props: ChatComposerProps) {
           query={slashMatchQuery}
           value={value}
           matches={slashMatches}
+          shortCommands={shortSlash}
+          onRunShort={(insert) => onSubmit(insert)}
           activeIndex={slashIndex}
           creativeMode={creativeMode}
           anchor={taRef.current}

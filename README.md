@@ -18,6 +18,10 @@
 </p>
 
 <p align="center">
+  This fork keeps the upstream OpenChatCut editor (<a href="https://github.com/0xsline/OpenChatCut">0xsline/OpenChatCut</a>, AGPL-3.0-or-later) and focuses the first-run path on chat-driven short movies: import several clips, order and trim them in chat, preview the cut, and export an MP4.
+</p>
+
+<p align="center">
   <a href="#what-is-openchatcut">Introduction</a> ·
   <a href="#product-tour">Product Tour</a> ·
   <a href="#quick-start">Quick Start</a> ·
@@ -273,6 +277,29 @@ http://localhost:5199
 ```
 
 Only add the model or media-service credentials you actually use to `.env.local`. Features without configured third-party credentials report the missing key explicitly; local timeline editing, built-in media, and other configured capabilities continue to work.
+
+`.npmrc` sets `onnxruntime-node-install=skip`. On Linux, `onnxruntime-node` 1.22 otherwise tries to download optional CUDA libraries and looks them up under a Windows runtime path, so `npm install` fails. The CPU binaries are already in the package. CI uses the same skip. npm prints a warning that the key is not a built-in npm setting; current npm still forwards it to the install script. To fetch CUDA instead, run `ONNXRUNTIME_NODE_INSTALL=cuda12 npm install` (that download still depends on the package paths matching the NuGet layout).
+
+### Short movies from chat
+
+No API key is required to import clips, assemble a short, preview it, or export an MP4. Open-ended Agent chat still needs a model (see below). Leave provider keys blank in `.env.local` when you only want the local short-movie commands.
+
+1. `npm run dev`, then open a project.
+2. Import several videos or images at once from the media pool or by dropping them on the preview. The pool file picker accepts multiple files. Videos and images are the picture sequence; audio stays in the pool until you place it yourself.
+3. In chat, use a starter chip or type the same sentence. The composer also lists local commands when the text starts with `/`. These run in the editor and do not call a model:
+
+| Say or type | What it does |
+| --- | --- |
+| `Order these clips` or `/order` | Places pool videos and images on the timeline in natural filename order. `/order a.mp4, b.mp4` uses that order and appends the other picture clips after them. |
+| `Trim intros` or `/trim` | Drops 1 second from the start of each picture clip and closes the gap. `/trim 0.5s`, `/trim outro`, `/trim clip 2`. |
+| `Cut each clip to 3s` or `/cut 3s` | Caps each clip. `/cut clip 2` removes that clip and ripples the rest. |
+| `Add fades` or `/fades` | Adds a 0.5 second fade in and out. |
+| `Mute clips` or `/mute` | Mutes picture clips that have audio. `/unmute` restores it. |
+| `Make a 30s short` or `/short 30s` | Orders by name, fits the total length, and adds short fades. |
+| `Export` or `/export` | Opens the export dialog. Choose MP4 there. |
+| `/help` | Lists the local commands. |
+
+Refer to one clip by filename, `clip 2`, or `last`. After a local edit, the preview seeks to the start of the sequence so you can play the cut. Anything that is not one of these commands is sent to the Agent and needs a configured model.
 
 Development launches are isolated per Git checkout/worktree by default. `npm run dev` and
 `npm run desktop:dev` keep that checkout's projects, imported media, generation jobs,

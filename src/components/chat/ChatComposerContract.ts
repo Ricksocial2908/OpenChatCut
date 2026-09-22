@@ -11,7 +11,8 @@ export type RefItem = AgentReference;
 export interface ChatComposerProps {
   value: string;
   onChange: (value: string) => void;
-  onSubmit: () => void;
+  /** Optional text overrides the composer value (slash short commands). Click events are ignored. */
+  onSubmit: (text?: string) => void;
   onStop: () => void;
   onEnhance: () => void;
   agentSettings: AgentSettings;

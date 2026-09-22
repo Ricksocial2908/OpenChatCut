@@ -283,9 +283,10 @@ export function MediaPoolPanel({
   const parentFolder = currentFolder?.parentId
     ? folders.find((folder) => folder.id === currentFolder.parentId)
     : undefined;
+  const shortEmpty = assets.length === 0 && !currentFolderId && childFolders.length === 0 && showFolders;
   const gridEntries = useMemo<MediaGridEntry[]>(() => [
-    ...(showFolders && !currentFolderId && onAddSolid ? [{ kind: 'solid' as const }] : []),
-    ...(showFolders && !currentFolderId ? [{ kind: 'favorites' as const }] : []),
+    ...(shortEmpty ? [] : showFolders && !currentFolderId && onAddSolid ? [{ kind: 'solid' as const }] : []),
+    ...(shortEmpty ? [] : showFolders && !currentFolderId ? [{ kind: 'favorites' as const }] : []),
     ...(showFolders && currentFolder ? [{
       kind: 'parent' as const,
       parentId: currentFolder.parentId,
@@ -293,7 +294,7 @@ export function MediaPoolPanel({
     }] : []),
     ...(showFolders ? childFolders.map((folder) => ({ kind: 'folder' as const, folder })) : []),
     ...visible.map((asset) => ({ kind: 'asset' as const, asset })),
-  ], [childFolders, currentFolder, currentFolderId, onAddSolid, parentFolder?.name, showFolders, t, visible]);
+  ], [childFolders, currentFolder, currentFolderId, onAddSolid, parentFolder?.name, shortEmpty, showFolders, t, visible]);
   const openFolder = useCallback((id: string) => setCurrentFolderId(id), []);
   const openParent = useCallback(() => {
     setCurrentFolderId(currentFolder?.parentId);
@@ -412,6 +413,7 @@ export function MediaPoolPanel({
         onDropTransfer={(transfer, folderId) => void handleDrop(transfer, folderId)}
         onMoveAsset={(id, folderId) => onMoveAssets([id], folderId)}
         onMoveAssets={(ids, folderId) => onMoveAssets(ids, folderId)}
+        onImportEmpty={() => inputRef.current?.click()}
         onOpenFavorites={openFavorites}
         onAddSolid={onAddSolid}
         onAddAsset={onAddAsset}

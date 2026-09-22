@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import type { AgentContext } from '../../agent/context';
 import type { AgentController } from '../../agent/useAgent';
-import { useAgentState } from '../../agent/useAgentState';
+import { useAgentState, type AgentHookState } from '../../agent/useAgentState';
 import { enhanceAgentPrompt } from '../../agent/agent-session';
 import { useServerRun } from '../../agent/useServerRun';
 import type { ServerRunController } from '../../agent/serverRunProtocol';
@@ -16,9 +16,21 @@ import {
  * run path (the browser-side runAgent loop was removed); this adapter covers
  * every controller field without a fallback to browser execution.
  */
+function recordLocalTurn(state: AgentHookState, userText: string, reply: string, ok = true): void {
+  const text = userText.trim();
+  const answer = reply.trim();
+  if (!text || !answer) return;
+  state.setMessages((current) => [
+    ...current,
+    { role: 'user', text, local: true },
+    ok ? { role: 'assistant', text: answer } : { role: 'error', text: answer },
+  ]);
+}
+
 function serverRunAdapter(
   run: ServerRunController,
   bridge: ServerRunProposalBridge,
+  state: AgentHookState,
 ): AgentController {
   return {
     messages: run.messages,
@@ -42,6 +54,7 @@ function serverRunAdapter(
     rollbackChangeSession: bridge.rollbackChangeSession,
     canRollbackChangeSession: bridge.canRollbackChangeSession,
     rewindTurn: bridge.rewindTurn,
+    recordLocalTurn: (userText, reply, ok) => recordLocalTurn(state, userText, reply, ok),
   };
 }
 
@@ -75,5 +88,5 @@ export function useChatAgentController(
     onTerminal: bridge.onTerminal,
   });
   serverRunRef.current = run.send;
-  return serverRunAdapter(run, bridge);
+  return serverRunAdapter(run, bridge, state);
 }

@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import { isSelectionRefKind } from '../../agent/selection-refs';
 import type { SkillDefinition } from '../../agent/skills/skill-types';
+import type { ShortSlashEntry } from '../../shorts/shortCommands';
 import { localizedCatalogText, tData, useT } from '../../i18n/locale';
 import { theme } from '../../theme';
 import { Icon } from '../icons';
@@ -144,11 +145,15 @@ function SlashResults(props: {
   matches: SkillDefinition[];
   activeIndex: number;
   creativeMode: string | null;
+  indexOffset?: number;
+  hideEmpty?: boolean;
   onActivate: (skill: SkillDefinition) => void;
   onHover: (index: number) => void;
 }) {
   const t = useT();
+  const offset = props.indexOffset ?? 0;
   if (props.matches.length === 0) {
+    if (props.hideEmpty) return null;
     return (
       <div style={{ fontSize: 12, color: theme.textDim, padding: '6px 10px' }}>
         {props.explicit
@@ -158,9 +163,35 @@ function SlashResults(props: {
     );
   }
   return props.matches.map((skill, index) => (
-    <SlashSkillRow key={skill.id} skill={skill} index={index} activeIndex={props.activeIndex}
+    <SlashSkillRow key={skill.id} skill={skill} index={index + offset} activeIndex={props.activeIndex}
       selected={props.creativeMode === skill.id} onActivate={props.onActivate} onHover={props.onHover} />
   ));
+}
+
+function ShortSlashRow({ entry, index, activeIndex, onRun, onHover }: {
+  entry: ShortSlashEntry;
+  index: number;
+  activeIndex: number;
+  onRun: (insert: string) => void;
+  onHover: (index: number) => void;
+}) {
+  const t = useT();
+  const active = index === activeIndex;
+  return (
+    <button type="button" onMouseEnter={() => onHover(index)} onClick={() => onRun(entry.insert)}
+      style={{
+        width: '100%', display: 'flex', flexDirection: 'column', gap: 2, padding: '7px 8px',
+        border: 0, borderRadius: 4, background: active ? theme.hover : 'transparent',
+        color: theme.text, cursor: 'pointer', textAlign: 'left',
+      }}>
+      <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <Icon name="film" size={14} />
+        <strong style={{ fontSize: 12.5 }}>{t(entry.label)}</strong>
+        <code style={{ marginLeft: 'auto', fontSize: 10.5, color: theme.textDim }}>{entry.insert}</code>
+      </span>
+      <small style={{ color: theme.textDim, fontSize: 11, paddingLeft: 22 }}>{t(entry.description)}</small>
+    </button>
+  );
 }
 
 export function ComposerSlashPopover(props: {
@@ -169,6 +200,7 @@ export function ComposerSlashPopover(props: {
   query: string;
   value: string;
   matches: SkillDefinition[];
+  shortCommands?: readonly ShortSlashEntry[];
   activeIndex: number;
   creativeMode: string | null;
   anchor: HTMLElement | null;
@@ -176,18 +208,24 @@ export function ComposerSlashPopover(props: {
   onClose: () => void;
   onActivate: (skill: SkillDefinition) => void;
   onHover: (index: number) => void;
+  onRunShort?: (insert: string) => void;
 }) {
   const t = useT();
+  const shorts = props.shortCommands ?? [];
   return (
     <ComposerPopover width={props.width} className="cc-chat-popover--workflow"
       ariaLabel={t('技能命令补全')} anchor={props.anchor} onClose={props.onClose}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '10px 12px 6px' }}>
         <Icon name="wand" size={14} />
-        <strong style={{ fontSize: 12.5 }}>{props.explicit ? t('技能命令') : t('创作工作流')}</strong>
+        <strong style={{ fontSize: 12.5 }}>{props.explicit ? t('技能命令') : shorts.length ? t('短片指令与工作流') : t('创作工作流')}</strong>
         <code style={{ marginLeft: 'auto', fontSize: 10.5, color: theme.textDim }}>{props.value}</code>
       </div>
-      <div ref={props.listRef} style={{ maxHeight: 264, overflowY: 'auto', padding: '2px 6px 8px' }}>
-        <SlashResults {...props} />
+      <div ref={props.listRef} style={{ maxHeight: 320, overflowY: 'auto', padding: '2px 6px 8px' }}>
+        {shorts.map((entry, index) => (
+          <ShortSlashRow key={entry.id} entry={entry} index={index} activeIndex={props.activeIndex}
+            onHover={props.onHover} onRun={(insert) => props.onRunShort?.(insert)} />
+        ))}
+        <SlashResults {...props} indexOffset={shorts.length} hideEmpty={shorts.length > 0} />
         <div style={{ fontSize: 10, color: theme.textDim, padding: '6px 10px 2px', letterSpacing: 0.4 }}>
           {t('Tab / Enter 补全并激活 · Esc 退出')}
         </div>
